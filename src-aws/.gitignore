@@ -1,0 +1,69 @@
+# ========================================
+# Dependencies
+# ========================================
+node_modules/
+package-lock.json
+
+# ========================================
+# Environment Variables (⚠️ CRITICAL!)
+# ========================================
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
+
+# ========================================
+# AWS Deployment
+# ========================================
+.serverless/
+.aws-sam/
+.build/
+
+# CloudFormation templates (generated)
+.serverless/*.json
+.serverless/*.yaml
+
+# ========================================
+# Logs
+# ========================================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log.*
+
+# ========================================
+# Build Output
+# ========================================
+dist/
+build/
+*.zip
+.webpack/
+
+# ========================================
+# IDE & OS
+# ========================================
+.vscode/
+.idea/
+*.sublime-*
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ========================================
+# Test Coverage
+# ========================================
+coverage/
+.nyc_output/
+*.lcov
+
+# ========================================
+# Temporary Files
+# ========================================
+.cache/
+temp/
+tmp/
+*.tmp

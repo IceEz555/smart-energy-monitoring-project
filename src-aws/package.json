@@ -1,0 +1,40 @@
+{
+  "name": "src-aws",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "mocha \"tests\" \"./core/helpers/*.test.js\"",
+    "build": "webpack --config webpack.config.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:report": "eslint . -o eslint-report.html -f html"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "aws-sdk": "^2.1692.0",
+    "eslint": "^9.37.0",
+    "serverless-dotenv-plugin": "^6.0.0",
+    "serverless-finch": "^2.5.2",
+    "serverless-scriptable-plugin": "^1.0.5",
+    "webpack": "5.75.0",
+    "webpack-cli": "^4.10.0",
+    "webpack-node-externals": "^1.7.2"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.859.0",
+    "@aws-sdk/client-s3": "^3.859.0",
+    "@aws-sdk/lib-dynamodb": "^3.859.0",
+    "@google/generative-ai": "^0.24.1",
+    "graphql": "^16.8.1",
+    "graphql-fields": "^2.0.3",
+    "jstat": "^1.9.6",
+    "jStat": "^1.8.6",
+    "moment-timezone": "^0.6.0",
+    "node-fetch": "^2.7.0"
+  }
+}

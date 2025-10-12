@@ -1,0 +1,23 @@
+# AWS IoT Certificates (IMPORTANT!)
+certificates/
+*.pem
+*.key
+*.crt
+
+# Build files
+build/
+*.bin
+*.elf
+*.map
+
+# IDE
+.vscode/
+.pio/
+.pioenvs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

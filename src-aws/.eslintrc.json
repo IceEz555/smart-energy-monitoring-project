@@ -1,0 +1,45 @@
+{
+  "env": {
+    "node": true,
+    "es2021": true,
+    "browser": true
+  },
+  "extends": "eslint:recommended",
+  "parserOptions": {
+    "ecmaVersion": 12,
+    "sourceType": "module"
+  },
+  "globals": {
+    "Chart": "readonly",
+    "Dygraph": "readonly",
+    "jStat": "readonly",
+    "showdown": "readonly"
+  },
+  "rules": {
+    "no-console": "off",
+    "no-unused-vars": ["warn", { 
+      "argsIgnorePattern": "^_",
+      "varsIgnorePattern": "^_"
+    }],
+    "no-undef": "warn",
+    "prefer-const": "error",
+    "no-var": "error",
+    "eqeqeq": ["error", "always"],
+    "curly": "off",
+    "brace-style": ["error", "1tbs"],
+    "indent": ["error", 4, { "SwitchCase": 1 }],
+    "quotes": ["error", "single", { 
+      "avoidEscape": true 
+    }],
+    "semi": ["error", "always"],
+    "no-trailing-spaces": "error",
+    "comma-dangle": ["error", "never"],
+    "arrow-spacing": "error",
+    "space-before-function-paren": ["error", {
+      "anonymous": "always",
+      "named": "never",
+      "asyncArrow": "always"
+    }],
+    "no-mixed-spaces-and-tabs": "error"
+  }
+}

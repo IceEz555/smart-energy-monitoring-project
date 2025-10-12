@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Energy Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.css" />
+    <link href="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.css" rel="stylesheet" />
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jstat@1.9.5/dist/jstat.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .dygraph-legend {
+            background-color: rgba(255, 255, 255, 0.9) !important;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 4px_15px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e5e7eb;
+        }
+
+        .sidebar-active {
+            background-color: #eef2ff;
+            color: #4f46e5;
+            font-weight: 600;
+        }
+
+        /* Modal transitions */
+        .modal-backdrop {
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-content {
+            transition: transform 0.3s ease;
+        }
+
+        /* AI Insights Content Styling */
+        #modal-content-area h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 0.5rem;
+        }
+
+        #modal-content-area h3 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #4f46e5;
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+        }
+
+        #modal-content-area ul {
+            list-style-type: disc;
+            margin-left: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        #modal-content-area li {
+            margin-bottom: 0.5rem;
+        }
+
+        #modal-content-area strong {
+            color: #4f46e5;
+        }
+    </style>
+</head>
+
+<body class="flex h-screen">
+
+    <aside id="main-sidebar"
+        class="fixed top-0 left-0 z-40 w-64 h-screen transition-transform -translate-x-full sm:translate-x-0 bg-white shadow-md flex flex-col"
+        aria-label="Sidebar">
+        <div class="p-6 text-2xl font-bold text-indigo-600 border-b flex items-center gap-3">
+            <svg class="w-8 h-8 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                    d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z" />
+            </svg>
+            <span>Energy Monitor</span>
+        </div>
+        <nav class="flex-1 p-4 space-y-2">
+            <a href="index.html" class="flex items-center px-4 py-2 text-gray-700 rounded-lg sidebar-active">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                        d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                </svg>
+                Dashboard
+            </a>
+            <a href="report.html" class="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd"
+                        d="M5 4a3 3 0 00-3 3v6a3 3 0 003 3h10a3 3 0 003-3V7a3 3 0 00-3-3H5zm-1 9v-1h5v2H5a1 1 0 01-1-1zm7 1h4a1 1 0 001-1v-1h-5v2zm0-4h5V8h-5v2zM4 8h5v2H4V8z"
+                        clip-rule="evenodd" />
+                </svg>
+                Reports
+            </a>
+        </nav>
+        <div class="p-4 border-t mt-auto">
+            <p class="text-xs text-gray-700">Last Reading: <span id="last-reading">...</span></p>
+        </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col overflow-hidden ml-0 sm:ml-64 relative">
+        <header class="bg-white p-6 flex justify-between items-center z-10">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">Overview</h1>
+                <p class="text-gray-500 mt-1">Monitor your energy consumption in real-time</p>
+            </div>
+            <div class="flex items-center space-x-2">
+                <div class="flex items-center bg-gray-100 p-1 rounded-lg">
+                    <button id="btnToday"
+                        class="px-4 py-1.5 text-sm font-semibold text-white bg-indigo-600 rounded-md shadow-sm focus:outline-none transition-all">Today</button>
+                    <button id="btnYesterday"
+                        class="px-4 py-1.5 text-sm font-medium text-gray-600 hover:bg-white hover:shadow-sm rounded-md focus:outline-none transition-all">Yesterday</button>
+                </div>
+                <select id="device-selector"
+                    class="block w-40 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-lg shadow-sm">
+                    <option>Loading...</option>
+                </select>
+            </div>
+        </header>
+
+        <main class="flex-1 overflow-x-hidden overflow-y-auto p-6">
+            <div id="spinner"
+                class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 hidden z-20">
+                <svg class="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none"
+                    viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-sm font-medium text-gray-500">Current Usage</h3>
+                    <p class="mt-2 text-3xl font-bold text-gray-900" id="stats-current">... W</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-sm font-medium text-gray-500">Peak Usage (24h)</h3>
+                    <p class="mt-2 text-3xl font-bold text-gray-900" id="stats-max">... W</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-sm font-medium text-gray-500">Standby Power</h3>
+                    <p class="mt-2 text-3xl font-bold text-gray-900" id="stats-standby">... W</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-sm font-medium text-gray-500">Today's Total</h3>
+                    <p class="mt-2 text-3xl font-bold text-gray-900" id="stats-kwh">... kWh</p>
+                </div>
+            </div>
+
+            <div class="mt-6 bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Real-time Usage</h3>
+                <div id="graphdiv" style="width: 100%; height: 350px;"></div>
+                <p class="text-right text-xs text-gray-500 mt-2">Usage in selected range: <span id="usage-kwh">...
+                        kWh</span></p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Standby vs Active Power</h3>
+                    <div class="h-64 flex items-center justify-center"><canvas id="chart-standby"></canvas></div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Daily Usage (Last 30 days)</h3>
+                    <div class="h-64"><canvas id="canvas"></canvas></div>
+                </div>
+            </div>
+
+            <div class="mt-6 bg-white p-6 rounded-lg shadow-md">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-lg font-semibold text-gray-800">✨ AI Energy Insights</h3>
+                    <button id="get-insights-btn"
+                        class="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg shadow-sm hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">Get
+                        Insights</button>
+                </div>
+                <p class="mt-4 text-gray-600">Click "Get Insights" to analyze your energy usage patterns and receive
+                    personalized recommendations.</p>
+            </div>
+        </main>
+    </div>
+
+    <div id="ai-modal"
+        class="fixed inset-0 bg-gray-900 bg-opacity-50 modal-backdrop flex items-center justify-center p-4 hidden z-30">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl modal-content transform scale-95 flex flex-col">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h2 class="text-xl font-semibold text-gray-800">✨ AI Energy Insights</h2>
+                <button id="close-modal-btn" class="text-gray-400 hover:text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto" style="max-height: 70vh;">
+                <div id="modal-content-area" class="text-gray-700 space-y-4">
+                    <div class="flex items-center justify-center h-32">
+                        <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-500"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="notification-modal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-sm p-6 text-center">
+        <div class="flex justify-center items-center mx-auto bg-yellow-100 rounded-full h-12 w-12 mb-4">
+            <svg class="h-6 w-6 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+        </div>
+        <h3 class="text-lg font-medium text-gray-800">Alert</h3>
+        <p id="notification-message" class="text-sm text-gray-600 mt-2 mb-6"></p>
+        <button id="notification-close-btn" class="w-full px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+            OK
+        </button>
+    </div>
+</div>
+    <script src="main.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.js"></script>
+</body>
+
+</html>

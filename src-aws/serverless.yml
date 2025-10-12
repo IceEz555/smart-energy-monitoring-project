@@ -1,0 +1,196 @@
+service: smart-home-energy-monitor
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: prod
+  region: ap-southeast-2
+  profile: serverless-personal
+  memorySize: 256
+
+  environment:
+    TZ: Asia/Bangkok
+    DYNAMO_DB_TABLE: !Ref dynamoDataStore
+    S3_STORAGE_BUCKET: !Ref datastoreReadings
+    GEMINI_API_KEY: ${env:GEMINI_API_KEY}
+
+  apiGateway:
+    minimumCompressionSize: 1024
+
+  stackTags:
+    client: "xd-home-energy-monitor"
+
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:DeleteItem
+      Resource: !GetAtt [dynamoDataStore, Arn]
+
+    - Effect: "Allow"
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+      Resource:
+        - !GetAtt [datastoreReadings, Arn]
+        - !Join ["", [!GetAtt [datastoreReadings, Arn], "/*"]]
+
+plugins:
+  - serverless-finch
+  - serverless-dotenv-plugin
+
+build:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: false
+    exclude: 
+      - '@aws-sdk/*'
+    external:
+      - '@aws-sdk/*'
+
+package:
+  individually: true
+
+functions:
+  dailyDataArchive:
+    handler: functions/cron-rotate-daily.handler
+    description: Archive and aggregate yesterday's data to S3 and DynamoDB
+    timeout: 120
+    memorySize: 512
+    events:
+      - schedule:
+          description: "Archive the data generated yesterday to S3"
+          rate: cron(0 19 * * ? *)
+  
+  getAiInsights:
+    handler: functions/getAiInsights.handler
+    description: Get AI insights for energy usage
+    timeout: 30
+    memorySize: 2048
+    events:
+      - http:
+          path: /get-insights
+          method: post
+          cors: true
+
+  graphql:
+    description: GraphQL endpoint to query readings from devices
+    handler: functions/graphql/graphql.handler
+    memorySize: 512
+    timeout: 30
+    events:
+      - http:
+          path: graphql
+          method: post
+          cors: true
+
+resources:
+  Description: Monitoring home energy usage over time
+  Resources:
+    datastoreReadings:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:service}-${opt:stage, 'dev'}-${self:provider.region}-readings
+
+    wwwBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:service}-www
+
+    dynamoDataStore:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}
+        AttributeDefinitions:
+          - AttributeName: "primarykey"
+            AttributeType: S
+          - AttributeName: "sortkey"
+            AttributeType: N
+        KeySchema:
+          - AttributeName: "primarykey"
+            KeyType: HASH
+          - AttributeName: "sortkey"
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TimeToLiveSpecification:
+          AttributeName: ttl
+          Enabled: true
+
+    iotRule:
+      Type: AWS::IoT::TopicRule
+      Properties:
+        TopicRulePayload:
+          Actions:
+            - DynamoDBv2:
+                PutItem:
+                  TableName: ${self:service}
+                RoleArn: !GetAtt [iotRuleAllowDynamoWrites, Arn]
+          AwsIotSqlVersion: "2016-03-23"
+          Description: "Forwards incoming sensor messages to DynamoDB for analysis"
+          RuleDisabled: false
+          Sql: >-
+            SELECT * ,
+                  'reading-' + clientid() as primarykey,
+                  (timestamp() / 1000) as sortkey,
+                  ((timestamp() / 1000) + 2592000) as ttl FROM 'esp32/data'
+
+    iotPolicyForDevices:
+      Type: AWS::IoT::Policy
+      Properties:
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action:
+                - "iot:Connect"
+              Resource: "*"
+              Condition:
+                Bool:
+                  "iot:Connection.Thing.IsAttached": [true]
+            - Effect: "Allow"
+              Action:
+                - "iot:Publish"
+              Resource:
+                - Fn::Join:
+                    - ""
+                    - - "arn:aws:iot:"
+                      - Ref: AWS::Region
+                      - ":"
+                      - Ref: AWS::AccountId
+                      - ":topic/$aws/rules/"
+                      - Ref: iotRule
+
+    iotRuleAllowDynamoWrites:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Principal:
+                Service:
+                  - "iot.amazonaws.com"
+              Action:
+                - "sts:AssumeRole"
+        Path: "/"
+        Policies:
+          - PolicyName: ${self:service}-firehose-role
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                    - "dynamodb:PutItem"
+                  Resource: !GetAtt [dynamoDataStore, Arn]
+
+custom:
+  client:
+    bucketName: ${self:service}-www
+    distributionFolder: dashboard/
+    indexDocument: index.html
