@@ -3,7 +3,7 @@
 // =================================================================
 const BASE_URL = 'https://jcjmov2wp8.execute-api.ap-southeast-2.amazonaws.com/prod/graphql';
 let usageChart, costChart;
-let processedData = [];
+let tableDataToExport = []; // ใช้สำหรับ Export CSV
 
 // =================================================================
 // DOM Elements
@@ -52,6 +52,12 @@ async function initialize() {
     try {
         const devices = await fetchDeviceList();
         deviceSelector.innerHTML = '';
+
+        const allOption = document.createElement('option');
+        allOption.value = 'all';
+        allOption.textContent = 'All Devices';
+        deviceSelector.appendChild(allOption);
+
         if (devices && devices.length > 0) {
             devices.forEach(device => {
                 const option = document.createElement('option');
@@ -60,7 +66,10 @@ async function initialize() {
                 deviceSelector.appendChild(option);
             });
         } else {
-            deviceSelector.innerHTML = '<option>No devices found</option>';
+            if (deviceSelector.options.length === 1) {
+                allOption.disabled = true;
+                allOption.textContent = 'No devices found';
+            }
         }
     } catch (error) {
         deviceSelector.innerHTML = '<option>Error loading devices</option>';
@@ -71,9 +80,26 @@ async function initialize() {
     downloadBtn.addEventListener('click', handleDownloadCSV);
 }
 
+/**
+ * รวมผลลัพธ์จากหลายอุปกรณ์สำหรับใช้ในกราฟและ KPI cards
+ */
+function aggregateDataForCharts(unaggregatedData) {
+    const dailyTotals = {};
+    unaggregatedData.forEach(item => {
+        if (!dailyTotals[item.date]) {
+            dailyTotals[item.date] = { date: item.date, dayUse: 0, nightUse: 0, totalKwh: 0, dailyCost: 0 };
+        }
+        dailyTotals[item.date].dayUse += item.dayUse;
+        dailyTotals[item.date].nightUse += item.nightUse;
+        dailyTotals[item.date].totalKwh += item.totalKwh;
+        dailyTotals[item.date].dailyCost += item.dailyCost;
+    });
+    return Object.values(dailyTotals).sort((a, b) => new Date(a.date) - new Date(b.date));
+}
+
 async function handleGenerateReport() {
-    const deviceId = deviceSelector.value;
-    if (!deviceId || !startDateInput.value || !endDateInput.value) {
+    const selectedDevice = deviceSelector.value;
+    if (!selectedDevice || !startDateInput.value || !endDateInput.value) {
         showNotification('Please select a device and date range.');
         return;
     }
@@ -88,10 +114,26 @@ async function handleGenerateReport() {
     const endTimestamp = Math.floor(endDateInput.valueAsDate.getTime() / 1000) + (24 * 60 * 60 - 1);
 
     try {
-        const rawData = await fetchUsageData(deviceId, startTimestamp, endTimestamp);
+        let unaggregatedData = [];
+        let allDevices = [];
 
-        if (rawData.length > 0) {
-            processedData = rawData.map(item => {
+        if (selectedDevice === 'all') {
+            allDevices = Array.from(deviceSelector.options).map(opt => opt.value).filter(val => val !== 'all');
+            if (allDevices.length === 0) {
+                showNotification('No devices available to generate a report.');
+                return;
+            }
+            const promises = allDevices.map(device => fetchUsageData(device, startTimestamp, endTimestamp).then(data => data.map(d => ({...d, deviceName: device }))));
+            const results = await Promise.all(promises);
+            unaggregatedData = results.flat();
+        } else {
+            const rawData = await fetchUsageData(selectedDevice, startTimestamp, endTimestamp);
+            unaggregatedData = rawData.map(d => ({...d, deviceName: selectedDevice }));
+        }
+
+        if (unaggregatedData.length > 0) {
+            // Process all data points for table and export
+            tableDataToExport = unaggregatedData.map(item => {
                 const totalKwh = item.dayUse + item.nightUse;
                 return {
                     date: new Date(item.timestamp * 1000).toLocaleDateString('en-CA'),
@@ -99,20 +141,24 @@ async function handleGenerateReport() {
                     nightUse: item.nightUse,
                     totalKwh: totalKwh,
                     dailyCost: calculateEstimatedCost(totalKwh),
-                    deviceName: deviceId
+                    deviceName: item.deviceName
                 };
-            });
+            }).sort((a, b) => new Date(a.date) - new Date(b.date) || a.deviceName.localeCompare(b.deviceName));
 
-            updateSummaryCards(processedData);
-            renderUsageChart(processedData);
-            renderCostChart(processedData);
-            renderTable(processedData);
+            renderTable(tableDataToExport);
+
+            // Aggregate data for summary cards and charts
+            const dataForCharts = (selectedDevice === 'all') ? aggregateDataForCharts(tableDataToExport) : tableDataToExport;
+            
+            updateSummaryCards(dataForCharts);
+            renderUsageChart(dataForCharts);
+            renderCostChart(dataForCharts);
 
             initialState.classList.add('hidden');
             reportContent.classList.remove('hidden');
             downloadBtn.disabled = false;
         } else {
-            showNotification('No data found for the selected device and date range.');
+            showNotification('No data found for the selected device(s) and date range.');
         }
     } catch (error) {
         console.error('Failed to generate report:', error);
@@ -122,6 +168,7 @@ async function handleGenerateReport() {
         generateBtn.disabled = false;
     }
 }
+
 
 function fetchDeviceList() {
     return new Promise((resolve, reject) => {
@@ -142,7 +189,7 @@ function fetchUsageData(deviceId, startTimestamp, endTimestamp) {
         xhr.open('POST', BASE_URL);
         xhr.setRequestHeader('Content-Type', 'application/json');
         const query = 'query($d: String!, $s: Int!, $e: Int!) { usageData(deviceId: $d, startDate: $s, endDate: $e) { timestamp dayUse nightUse } }';
-        xhr.send(JSON.stringify({ query: query, variables: { d: deviceId, s: startTimestamp, e: endTimestamp } }));
+        xhr.send(JSON.stringify({ query, variables: { d: deviceId, s: startTimestamp, e: endTimestamp } }));
     });
 }
 
@@ -158,25 +205,20 @@ function updateSummaryCards(data) {
     document.getElementById('summary-peak-usage').innerText = `${peakUsage.toFixed(2)} kWh`;
 }
 
-/**
- * วาดกราฟแท่งแบบ Stacked (Daily Usage)
- */
 function renderUsageChart(data) {
     const ctx = document.getElementById('report-chart').getContext('2d');
-    if (usageChart) {
-        usageChart.destroy();
-    }
+    if (usageChart) usageChart.destroy();
     usageChart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: data.map(el => el.date),
             datasets: [{
                 label: 'Day Usage (kWh)',
-                backgroundColor: 'rgb(56, 189, 248)', //  สีใหม่: ฟ้า (Sky Blue)
+                backgroundColor: 'rgb(56, 189, 248)',
                 data: data.map(el => el.dayUse.toFixed(2))
             }, {
                 label: 'Night Usage (kWh)',
-                backgroundColor: 'rgb(49, 46, 129)',  // สีใหม่: กรมท่า (Dark Indigo)
+                backgroundColor: 'rgb(49, 46, 129)',
                 data: data.map(el => el.nightUse.toFixed(2))
             }]
         },
@@ -191,9 +233,7 @@ function renderUsageChart(data) {
 
 function renderCostChart(data) {
     const ctx = document.getElementById('cost-chart').getContext('2d');
-    if (costChart) {
-        costChart.destroy();
-    }
+    if (costChart) costChart.destroy();
     costChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -211,9 +251,6 @@ function renderCostChart(data) {
     });
 }
 
-/**
- * แสดงข้อมูลในตาราง
- */
 function renderTable(data) {
     const tableBody = document.getElementById('report-table-body');
     tableBody.innerHTML = data.map(item => `
@@ -228,15 +265,10 @@ function renderTable(data) {
     `).join('');
 }
 
-/**
- * จัดการการดาวน์โหลดไฟล์ CSV
- */
 function handleDownloadCSV() {
-    if (processedData.length === 0) {
-        return;
-    }
+    if (tableDataToExport.length === 0) return;
     let csvContent = 'data:text/csv;charset=utf-8,Date,Day_kWh,Night_kWh,Total_kWh,Cost_THB,Device\r\n';
-    processedData.forEach(item => {
+    tableDataToExport.forEach(item => {
         csvContent += `${item.date},${item.dayUse.toFixed(3)},${item.nightUse.toFixed(3)},${item.totalKwh.toFixed(3)},${item.dailyCost.toFixed(3)},${item.deviceName}\r\n`;
     });
     const link = document.createElement('a');
@@ -253,16 +285,16 @@ const notificationMessage = document.getElementById('notification-message');
 const notificationCloseBtn = document.getElementById('notification-close-btn');
 
 function showNotification(message) {
-    notificationMessage.textContent = message;
-    notificationModal.classList.remove('hidden');
+    if (notificationMessage) notificationMessage.textContent = message;
+    if (notificationModal) notificationModal.classList.remove('hidden');
 }
 
 function hideNotification() {
-    notificationModal.classList.add('hidden');
+    if (notificationModal) notificationModal.classList.add('hidden');
 }
 
-notificationCloseBtn.addEventListener('click', hideNotification);
-notificationModal.addEventListener('click', (e) => {
+if (notificationCloseBtn) notificationCloseBtn.addEventListener('click', hideNotification);
+if (notificationModal) notificationModal.addEventListener('click', (e) => {
     if (e.target.id === 'notification-modal') {
         hideNotification();
     }
