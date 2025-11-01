@@ -17,7 +17,7 @@
   },
   "rules": {
     "no-console": "off",
-    "no-unused-vars": ["warn", { 
+    "no-unused-vars": ["warn", {
       "argsIgnorePattern": "^_",
       "varsIgnorePattern": "^_"
     }],
@@ -28,8 +28,8 @@
     "curly": "off",
     "brace-style": ["error", "1tbs"],
     "indent": ["error", 4, { "SwitchCase": 1 }],
-    "quotes": ["error", "single", { 
-      "avoidEscape": true 
+    "quotes": ["error", "single", {
+      "avoidEscape": true
     }],
     "semi": ["error", "always"],
     "no-trailing-spaces": "error",

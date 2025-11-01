@@ -762,7 +762,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy...
 
 **Your Name**
 - GitHub: [@yourusername](https://github.com/yourusername)
-- Email: your.email@example.com
+- Email: apiwit806@gmail.com
 - LinkedIn: [Your LinkedIn](https://linkedin.com/in/yourprofile)
 
 ---
@@ -814,16 +814,6 @@ Permission is hereby granted, free of charge, to any person obtaining a copy...
 - [ ] Dark mode
 
 ---
-
-## 📞 Support
-
-หากพบปัญหาหรือมีคำถาม:
-
-1. **Check Documentation** - อ่าน [docs/](docs/) folder
-2. **Search Issues** - ดู [existing issues](https://github.com/yourusername/smart-home-energy-monitor/issues)
-3. **Create New Issue** - [Report a bug](https://github.com/yourusername/smart-home-energy-monitor/issues/new)
-4. **Contact** - Email: apiwit806@gmail.com
-
 ---
 
 <p align="center">

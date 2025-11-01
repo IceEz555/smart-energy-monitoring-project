@@ -149,7 +149,7 @@ function callGeminiAPI(model, prompt, apiKey) {
         req.on('error', (e) => {
             reject(e);
         });
-
+        console.log("Test")
         req.write(postData);
         req.end();
     });
